@@ -22,7 +22,8 @@ You will create an AI-powered avatar that can:
 ## 📸 Preview (Add Your Screenshots)
 
 ```md
-<img width="646" height="672" alt="image" src="https://github.com/user-attachments/assets/5bd84c31-25e9-49b7-abd8-35f0d19d6346" />
+
+<img width="646" height="672" alt="image" src="https://github.com/user-attachments/assets/008328cc-0760-40c0-a781-9f07a6c6d895" />
 
 ```
 
