@@ -92,7 +92,7 @@ python -c "import torch; print(torch.cuda.is_available())"
 
 ### Clone Project
 ```powershell
-git clone https://github.com/your-username/imtalker-avatar-studio.git
+git clone https://github.com/jjmlovesgit/local_openclaw_avatar_pipline
 cd imtalker-avatar-studio
 pip install -r requirements.txt
 ```
