@@ -1,6 +1,5 @@
 # 🎬 IMTalker Avatar Studio – Setup Guide (RTX 30/40 Series)
 
-![GitHub Repo stars](https://img.shields.io/github/stars/your-username/imtalker-avatar-studio?style=social)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-green)
 ![GPU](https://img.shields.io/badge/GPU-RTX%2030%2F40-orange)
