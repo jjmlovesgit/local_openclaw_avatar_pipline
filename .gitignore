@@ -1,0 +1,57 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+
+# ---- IDEs ----
+.vscode/
+.idea/
+
+# ---- Logs ----
+*.log
+
+# ---- Environment files ----
+.env
+
+# ---- ML / AI models (VERY IMPORTANT) ----
+whisper_models/
+checkpoints/
+*.ckpt
+*.bin
+*.pt
+*.onnx
+
+# ---- Audio / generated files ----
+uploads/
+chunks/
+*.wav
+*.webm
+*.mp3
+
+# ---- Test outputs ----
+htmlcov/
+.coverage
+.pytest_cache/
+
+# ---- Build / dist ----
+build/
+dist/
+*.egg-info/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Temporary files ----
+*.tmp
+*.temp
