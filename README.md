@@ -1,125 +1,207 @@
-<div align="center">
-<p align="center">
-  <h1>IMTalker: Efficient Audio-driven Talking Face Generation with Implicit Motion Transfer</h1>
+# 🎬 IMTalker Avatar Studio – Setup Guide (RTX 30/40 Series)
 
-
-## 📖 Overview
-
-IMTalker accepts diverse portrait styles and achieves 40 FPS for video-driven and 42 FPS for audio-driven talking-face generation when tested on an NVIDIA RTX 4090 GPU at 512 × 512 resolution. It also enables diverse controllability by allowing precise head-pose and eye-gaze inputs alongside audio
-
-<div align="center">
-  <img src="assets/teaser.png" alt="" width="1000">
-</div>
-
-## 📢 News
-
-- **[2025.11]** 🚀 The inference code and pretrained weights are released!
-
-## 🛠️ Installation
-
-### 1. Environment Setup
-
-```bash
-conda create -n IMTalker python=3.10
-conda activate IMTalker
-pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
-```
-
-**2. Install with pip:**
-
-```bash
-git clone https://github.com/cbsjtu01/IMTalker.git
-cd IMTalker
-pip install -r requirement.txt
-```
-
-## ⚡ Quick Start
-
-You can simply run the Gradio demo to get started. The script will **automatically download** the required pretrained models to the `./checkpoints` directory if they are missing.
-
-```bash
-python app.py
-```
-
-## 📦 Model
-
-Please download the pretrained models and place them in the `./checkpoints` directory.
-
-| Component               | Checkpoint             | Description             |                                   Download                                   |
-| :---------------------- | :--------------------- | :---------------------- | :---------------------------------------------------------------------------: |
-| **Audio Encoder** | `wav2vec2-base-960h` | Wav2Vec2 Base model     | [🤗 Link](https://huggingface.co/cbsjtu01/IMTalker/tree/main/wav2vec2-base-960h) |
-| **Generator**     | `generator.ckpt`     | Flow Matching Generator |   [🤗 Link](https://huggingface.co/cbsjtu01/IMTalker/blob/main/generator.ckpt)   |
-| **Renderer**      | `renderer.ckpt`      | IMT Renderer            |   [🤗 Link](https://huggingface.co/cbsjtu01/IMTalker/blob/main/renderer.ckpt)   |
-
-### 📂 Directory Structure
-
-Ensure your file structure looks like this after downloading:
-
-```text
-./checkpoints
-├── renderer.ckpt                     # The main renderer
-├── generator.ckpt                    # The main generator
-└── wav2vec2-base-960h/               # Audio encoder folder
-    ├── config.json
-    ├── pytorch_model.bin
-    └── ...
-```
-
-# 🎭 Avatar Studio: High-Fidelity Real-Time AI Avatar
-
-**Avatar Studio** is a low-latency, stability-first pipeline for generating interactive digital humans. By combining **Flow Matching Transformers (FMT)** with a high-resolution **IMTRenderer**, this project achieves synchronized lip-sync and natural macro-motions (head nods, blinks) in real-time.
-
-## ✨ Key Features
-
-* **Flow Matching Transformer (FMT):** Predicts natural facial trajectories with high temporal consistency.
-* **Low-Latency WebRTC Engine:** Optimized for sub-1.5s Time-to-First-Frame (TTFF) using chunked progressive rendering.
-* **Hybrid Motion Driver:** Blend audio-driven lip-sync with video-driven head movements for realistic presence.
-* **Production-Ready Backend:** Built-in support for **FastAPI**, **WebRTC VAD**, and **LiveKit Wake Word** ("Hey Jarvis").
-* **Hardware Optimized:** Native support for `torch.compile` and **NVIDIA Blackwell/Grace** architectures, with fallbacks for consumer RTX cards.
+![GitHub Repo stars](https://img.shields.io/github/stars/your-username/imtalker-avatar-studio?style=social)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-green)
+![GPU](https://img.shields.io/badge/GPU-RTX%2030%2F40-orange)
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Overview
 
-### 1. Prerequisites
+Welcome! This guide will help you install and run the complete Avatar Studio system on your Windows computer.
 
-* **Hardware:** NVIDIA GPU (24GB+ VRAM recommended for local inference).
-* **Environment:** Python 3.11+.
-* **FFmpeg:** Required for high-speed video encoding.
+You will create an AI-powered avatar that can:
+- Speak
+- Listen for the wake word **"Hey Jarvis"**
+- Run in an always‑on‑top desktop window
 
-### 2. Installation
+**⏱️ Estimated Time:** 30–45 minutes  
 
-```bash
-# Clone the repository
-git clone [https://github.com/your-username/avatar-studio.git](https://github.com/your-username/avatar-studio.git)
-cd avatar-studio
+---
 
-# Create and activate environment
-conda create -n avatar-env python=3.11
-conda activate avatar-env
+## 📸 Preview (Add Your Screenshots)
 
-# Install dependencies
+```md
+docs/screenshots/avatar-demo.png
+docs/screenshots/ui.png
+```
+
+---
+
+## 💻 Requirements
+
+- Windows 10 or 11  
+- NVIDIA RTX 30‑ or 40‑series GPU (**8 GB VRAM+**)  
+- 20 GB free disk space  
+- Microphone  
+
+> ⚠️ RTX 50-series users → see `README_BLACKWELL.md`
+
+---
+
+## 📦 System Components
+
+1. 🧠 Python Backend (IMTalker)
+2. 🔊 PocketTTS Voice Server
+3. 🪟 Electron Frontend
+
+---
+
+## 🧰 Prerequisites
+
+<details>
+<summary>Click to expand</summary>
+
+| Tool | Link |
+|------|------|
+| Miniconda | https://docs.conda.io/en/latest/miniconda.html |
+| Git | https://git-scm.com/download/win |
+| Node.js | https://nodejs.org/ |
+| LM Studio | https://lmstudio.ai/ |
+
+👉 Restart your PC after installing
+
+</details>
+
+---
+
+# 🧠 Part 1: Backend Setup
+
+<details>
+<summary>Full Instructions</summary>
+
+### Open Terminal
+Press `Win + R` → type `powershell`
+
+### Create Environment
+```powershell
+conda create -n avatar python=3.11 -y
+conda activate avatar
+```
+
+### Install PyTorch
+```powershell
+pip install torch==2.11.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+### Verify GPU
+```powershell
+python -c "import torch; print(torch.cuda.is_available())"
+```
+
+### Clone Project
+```powershell
+git clone https://github.com/your-username/imtalker-avatar-studio.git
+cd imtalker-avatar-studio
 pip install -r requirements.txt
 ```
 
-📜 ***Citation***
+### Models
+```
+./checkpoints/
+├── renderer.ckpt
+├── generator.ckpt
+└── wav2vec2-base-960h/
+```
 
-If you find our work useful for your research, please consider citing:
+### Wake Word
+```powershell
+python -c "import openwakeword; openwakeword.utils.download_models()"
+```
+
+### Run Server
+```powershell
+python python_avatar_server_electron.py
+```
+
+➡ Open: http://localhost:8002
+
+</details>
+
+---
+
+# 🔊 Part 2: Voice
+
+<details>
+<summary>Setup PocketTTS</summary>
+
+```powershell
+conda activate avatar
+pip install pocket-tts
+pocket-tts serve
+```
+
+➡ Test: http://localhost:8000
+
+</details>
+
+---
+
+# 🪟 Part 3: Electron UI
+
+<details>
+<summary>Run App</summary>
+
+```powershell
+cd electron-app
+npm install
+npm start
+```
+
+</details>
+
+---
+
+## 🎤 Features
+
+- Wake word: **Hey Jarvis**
+- Voice + text input
+- Floating desktop avatar
+- Real-time AI responses
+
+---
+
+## ⚙️ Troubleshooting
+
+<details>
+<summary>Common Issues</summary>
+
+| Problem | Fix |
+|--------|-----|
+| CUDA false | Update drivers |
+| Port in use | Change port |
+| No audio | Check speakers |
+| Wake word fails | Lower threshold |
+
+</details>
+
+---
+
+## 📚 Citation
 
 ```bibtex
 @article{imtalker2025,
-  title={IMTalker: Efficient Audio-driven Talking Face Generation with Implicit Motion Transfer},
-  author={Bo, Chen and Tao, Liu and Qi, Chen and  Xie, Chen and  Zilong Zheng}, 
-  journal={arXiv preprint arXiv:2511.22167},
+  title={IMTalker: Efficient Audio-driven Talking Face Generation},
+  author={Bo, Chen et al.},
   year={2025}
 }
 ```
 
-## 🙏 Acknowledgement
+---
 
-We express our sincerest gratitude to the excellent previous works that inspired this project:
+## 📁 Project Structure
 
-- **[IMF](https://github.com/ueoo/IMF)**: We adapted the framework and training pipeline from IMF and its reproduction code [IMF](https://github.com/johndpope/IMF).
-- **[FLOAT](https://github.com/deepbrainai-research/float)**: We referenced the model architecture and implementation of Float for our generator.
-- **[Wav2Vec2](https://huggingface.co/facebook/wav2vec2-base-960h)**: We utilized Wav2Vec as our audio encoder.
-- **[Face-Alignment](https://github.com/1adrianb/face-alignment)**: We used FaceAlignment for cropping images and videos.
+```
+imtalker-avatar-studio/
+├── python_avatar_server_electron.py
+├── checkpoints/
+├── electron-app/
+└── README.md
+```
+
+---
+
+## ⭐ Support
+
+Star the repo if useful ⭐
