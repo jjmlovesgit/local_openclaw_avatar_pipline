@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Avatar Studio - Optimized Final</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #0f0f1a;
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        h1 { text-align: center; color: white; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+        .video-container {
+            position: relative;
+            width: 256px;
+            height: 256px;
+            margin: 0 auto;
+            background-color: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        .video-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('data:image/png;base64,{{AVATAR_BASE64}}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+        }
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: transparent !important;
+            object-fit: cover;
+            pointer-events: none;
+            transition: opacity 0.15s ease-in-out;
+            z-index: 2;
+        }
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        .input-panel {
+            display: none;
+            margin: 20px 0;
+        }
+        .input-panel.active {
+            display: block;
+        }
+        .mic-area {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .record-btn {
+            width: 280px;
+            height: 80px;
+            border-radius: 40px;
+            background: transparent;
+            border: 3px solid #667eea;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            transition: all 0.2s;
+            box-shadow: 0 5px 20px rgba(102,126,234,0.2);
+        }
+        .record-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 25px rgba(102,126,234,0.4);
+        }
+        .record-btn.recording {
+            border-color: #f56565;
+            color: #f56565;
+            box-shadow: 0 5px 25px rgba(245,101,101,0.4);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        textarea {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            resize: vertical;
+        }
+        textarea::placeholder {
+            color: #aaa;
+        }
+        .voice-select {
+            width: 100%;
+            padding: 10px;
+            background: #2d3748;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            margin: 10px 0;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+        }
+        .voice-select option {
+            background: #1a1a2e;
+            color: white;
+        }
+        .voice-select:hover {
+            border-color: #667eea;
+        }
+        .send-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .send-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        .response-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .response-text {
+            color: #48bb78;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+        }
+        .chunk-visualization {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+        .chunk {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .chunk-pending { background: rgba(255,255,255,0.1); color: #666; }
+        .chunk-ready { background: #48bb78; color: white; }
+        .chunk-playing { background: #667eea; color: white; transform: scale(1.15); }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.info { background: rgba(255,255,255,0.1); color: #aaa; }
+        .status.success { background: rgba(72,187,120,0.2); color: #48bb78; }
+        .status.error { background: rgba(245,101,101,0.2); color: #f56565; }
+        .control-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .control-btn {
+            padding: 8px 20px;
+            background: rgba(102,126,234,0.8);
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .volume-slider { width: 100px; vertical-align: middle; }
+        .optimization-badge {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(72,187,120,0.2);
+            border-radius: 12px;
+            font-size: 12px;
+            color: #48bb78;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Avatar Studio</h1>
+        <div class="subtitle">Optimized • Fast • Natural Speech</div>
+        
+        <div class="video-container" id="videoContainer">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        
+        <div class="control-bar">
+            <button class="control-btn" onclick="toggleMute()">🔊 Mute</button>
+            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="80" onchange="setVolume(this.value)">
+            <span id="volumeLabel" style="color:#888;">80%</span>
+        </div>
+        
+        <div class="mode-toggle">
+            <button id="voiceModeBtn" class="mode-btn active" onclick="setMode('voice')">🎤 Voice Input</button>
+            <button id="textModeBtn" class="mode-btn" onclick="setMode('text')">💬 Text Input</button>
+        </div>
+        
+        <div id="voicePanel" class="input-panel active">
+            <div class="mic-area">
+                <button id="recordBtn" class="record-btn">🎤 Press SPACEBAR to Speak</button>
+                <p style="color:#888; margin-top: 10px;">Press and hold the SPACEBAR to record<br>Release to send</p>
+            </div>
+            <select id="voiceVoice" class="voice-select">
+                <option value="">Loading voices...</option>
+            </select>
+            <textarea id="systemPromptVoice" class="voice-select" rows="3" placeholder="System prompt (optimized for short sentences)">You are a helpful AI assistant speaking through an avatar.
+
+CRITICAL RULES:
+1. Keep EVERY sentence SHORT - maximum 12 words or 60 characters
+2. ALWAYS end each sentence with a period, question mark, or exclamation point
+3. Break long thoughts into multiple short, complete sentences
+4. Use simple, direct language</textarea>
+        </div>
+        
+        <div id="textPanel" class="input-panel">
+            <textarea id="textInput" rows="3" placeholder="Type your question for Gemma 4..."></textarea>
+            <select id="textVoice" class="voice-select">
+                <option value="">Loading voices...</option>
+            </select>
+            <textarea id="systemPromptText" class="voice-select" rows="3" placeholder="System prompt (optimized for short sentences)">You are a helpful AI assistant speaking through an avatar.
+
+CRITICAL RULES:
+1. Keep EVERY sentence SHORT - maximum 12 words or 60 characters
+2. ALWAYS end each sentence with a period, question mark, or exclamation point
+3. Break long thoughts into multiple short, complete sentences
+4. Use simple, direct language</textarea>
+            <button class="send-btn" onclick="sendText()">🎬 Send to Gemma 4</button>
+        </div>
+        
+        <div id="responseBox" class="response-box" style="display:none;">
+            <div id="responseText" class="response-text"></div>
+        </div>
+        
+        <div class="progress-bar">
+            <div id="progressFill" class="progress-fill">0%</div>
+        </div>
+        
+        <div id="chunkVisualization" class="chunk-visualization"></div>
+        
+        <div class="stats">
+            <span id="chunkStatus">Ready</span>
+            <span id="timeStatus"></span>
+        </div>
+        
+        <div id="status" class="status info">Press and hold SPACEBAR to speak, release to send</div>
+        
+        <div class="optimization-badge">
+            ⚡ Whisper Small | Sentence-aware chunking | NFE=4 | ~4-6s to first audio
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const statusDiv = document.getElementById('status');
+        const progressFill = document.getElementById('progressFill');
+        const chunkStatusSpan = document.getElementById('chunkStatus');
+        const timeStatusSpan = document.getElementById('timeStatus');
+        const chunkVisualization = document.getElementById('chunkVisualization');
+        const responseBox = document.getElementById('responseBox');
+        const responseTextDiv = document.getElementById('responseText');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeLabel = document.getElementById('volumeLabel');
+        
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let sessionId = null;
+        let totalChunks = 0;
+        let currentChunk = 0;
+        let readyChunks = [];
+        let pollingInterval = null;
+        let isMuted = false;
+        let recordStartTime = null;
+        
+        const recordBtn = document.getElementById('recordBtn');
+        const voicePanel = document.getElementById('voicePanel');
+        const textPanel = document.getElementById('textPanel');
+        const voiceModeBtn = document.getElementById('voiceModeBtn');
+        const textModeBtn = document.getElementById('textModeBtn');
+        const voiceVoiceSelect = document.getElementById('voiceVoice');
+        const textVoiceSelect = document.getElementById('textVoice');
+        
+        async function loadVoices() {
+            try {
+                const response = await fetch('/voices');
+                const data = await response.json();
+                const voices = data.voices || [];
+                
+                [voiceVoiceSelect, textVoiceSelect].forEach(select => {
+                    select.innerHTML = '';
+                    if (voices.length === 0) {
+                        const option = document.createElement('option');
+                        option.value = 'jonnydepp';
+                        option.textContent = 'Jonny Depp (Default)';
+                        select.appendChild(option);
+                    } else {
+                        voices.forEach(voice => {
+                            const option = document.createElement('option');
+                            option.value = voice.id;
+                            option.textContent = voice.name;
+                            if (voice.id === 'jonnydepp') {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+                    }
+                });
+                console.log(`Loaded ${voices.length} voices`);
+            } catch (error) {
+                console.error('Error loading voices:', error);
+                [voiceVoiceSelect, textVoiceSelect].forEach(select => {
+                    select.innerHTML = '';
+                    const option = document.createElement('option');
+                    option.value = 'jonnydepp';
+                    option.textContent = 'Jonny Depp (Default)';
+                    select.appendChild(option);
+                });
+            }
+        }
+        
+        function setVolume(value) {
+            const vol = value / 100;
+            video.volume = vol;
+            volumeLabel.textContent = value + '%';
+        }
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            video.muted = isMuted;
+            document.querySelector('.control-btn').textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+        }
+        
+        function setMode(mode) {
+            if (mode === 'voice') {
+                voiceModeBtn.classList.add('active');
+                textModeBtn.classList.remove('active');
+                voicePanel.classList.add('active');
+                textPanel.classList.remove('active');
+                setStatus('Press and hold SPACEBAR to speak, release to send', 'info');
+            } else {
+                voiceModeBtn.classList.remove('active');
+                textModeBtn.classList.add('active');
+                voicePanel.classList.remove('active');
+                textPanel.classList.add('active');
+                setStatus('Type your message and click Send to Gemma 4', 'info');
+            }
+            responseBox.style.display = 'none';
+        }
+        
+        function setStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            console.log(message);
+        }
+        
+        function updateChunkVisualization(currentIndex) {
+            let html = '';
+            for (let i = 0; i < totalChunks; i++) {
+                let statusClass = 'chunk-pending';
+                if (i === currentIndex) statusClass = 'chunk-playing';
+                else if (readyChunks[i]) statusClass = 'chunk-ready';
+                html += '<div class="chunk ' + statusClass + '">' + (i+1) + '</div>';
+            }
+            chunkVisualization.innerHTML = html;
+        }
+        
+        async function startPlayback() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(pollChunkStatus, 1000);
+            currentChunk = 0;
+            await playChunk(0);
+            if (pollingInterval) clearInterval(pollingInterval);
+        }
+        
+        async function pollChunkStatus() {
+            if (!sessionId) return;
+            const response = await fetch('/chunk_status/' + sessionId);
+            const data = await response.json();
+            if (data.ready) {
+                readyChunks = data.ready;
+                updateChunkVisualization(currentChunk);
+                const readyCount = readyChunks.filter(r => r).length;
+                timeStatusSpan.textContent = '📦 ' + readyCount + '/' + totalChunks + ' chunks ready';
+            }
+        }
+        
+        async function waitForChunk(chunkIndex) {
+            while (true) {
+                const response = await fetch('/wait_for_chunk/' + sessionId + '/' + chunkIndex);
+                const data = await response.json();
+                if (data.ready) {
+                    return data.url;
+                }
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+        
+        async function playChunk(chunkIndex) {
+            if (chunkIndex >= totalChunks) {
+                setStatus('✅ Complete!', 'success');
+                return;
+            }
+            
+            chunkStatusSpan.textContent = '⏳ Loading chunk ' + (chunkIndex + 1) + '/' + totalChunks + '...';
+            
+            try {
+                const chunkUrl = await waitForChunk(chunkIndex);
+                chunkStatusSpan.textContent = '▶️ Playing chunk ' + (chunkIndex + 1) + '/' + totalChunks;
+                
+                const percent = Math.round((chunkIndex / totalChunks) * 100);
+                progressFill.style.width = percent + '%';
+                progressFill.textContent = percent + '%';
+                updateChunkVisualization(chunkIndex);
+                
+                if (video.src && video.src !== chunkUrl) video.style.opacity = '0.7';
+                video.src = chunkUrl;
+                await video.play();
+                video.style.opacity = '1';
+                
+                await new Promise((resolve) => {
+                    const onEnded = () => {
+                        video.removeEventListener('ended', onEnded);
+                        resolve();
+                    };
+                    video.addEventListener('ended', onEnded);
+                });
+                
+                currentChunk = chunkIndex + 1;
+                await playChunk(currentChunk);
+            } catch (error) {
+                setStatus('Error: ' + error.message, 'error');
+            }
+        }
+        
+        document.addEventListener('keydown', async (event) => {
+            if (event.code === 'Space' && !isRecording && document.getElementById('voicePanel').classList.contains('active')) {
+                event.preventDefault();
+                const activeElement = document.activeElement;
+                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+                if (!isTyping) {
+                    startRecording();
+                }
+            }
+        });
+        
+        document.addEventListener('keyup', (event) => {
+            if (event.code === 'Space' && isRecording && document.getElementById('voicePanel').classList.contains('active')) {
+                event.preventDefault();
+                stopRecording();
+            }
+        });
+        
+        async function startRecording() {
+            if (isRecording) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => { audioChunks.push(event.data); };
+                mediaRecorder.onstop = async () => {
+                    const duration = (Date.now() - recordStartTime) / 1000;
+                    if (duration < 0.5) {
+                        setStatus('⏱️ Recording too short. Please speak for at least 1 second.', 'error');
+                        stream.getTracks().forEach(track => track.stop());
+                        resetRecordingUI();
+                        return;
+                    }
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+                    formData.append('voice', voiceVoiceSelect.value);
+                    formData.append('system_prompt', document.getElementById('systemPromptVoice').value);
+                    
+                    setStatus('🎧 Processing...', 'info');
+                    responseBox.style.display = 'block';
+                    responseTextDiv.innerHTML = 'Transcribing...';
+                    recordBtn.disabled = true;
+                    recordBtn.style.opacity = '0.5';
+                    
+                    try {
+                        const response = await fetch('/chat', { method: 'POST', body: formData });
+                        const data = await response.json();
+                        if (data.success) {
+                            sessionId = data.session_id;
+                            totalChunks = data.total_chunks;
+                            readyChunks = new Array(totalChunks).fill(false);
+                            responseTextDiv.innerHTML = '🎤 <strong>You said:</strong><br>' + (data.transcript || '') + '<br><br>🤖 <strong>Gemma 4:</strong><br>' + data.response_text;
+                            setStatus('✅ ' + data.message, 'success');
+                            updateChunkVisualization(-1);
+                            await startPlayback();
+                        } else {
+                            setStatus('❌ Error: ' + data.error, 'error');
+                            responseTextDiv.innerHTML = 'Error: ' + data.error;
+                        }
+                    } catch (error) {
+                        setStatus('❌ Error: ' + error.message, 'error');
+                        responseTextDiv.innerHTML = 'Error: ' + error.message;
+                    }
+                    
+                    recordBtn.disabled = false;
+                    recordBtn.style.opacity = '1';
+                    stream.getTracks().forEach(track => track.stop());
+                    resetRecordingUI();
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                recordStartTime = Date.now();
+                recordBtn.classList.add('recording');
+                recordBtn.textContent = '🔴 Recording... Release SPACEBAR to send';
+                setStatus('🎤 Recording... Press and hold SPACEBAR, release when done', 'info');
+                setTimeout(() => { if (isRecording) stopRecording(); }, 30000);
+            } catch (error) {
+                setStatus('❌ Could not access microphone. Please check permissions.', 'error');
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+            }
+        }
+        
+        function resetRecordingUI() {
+            recordBtn.classList.remove('recording');
+            recordBtn.textContent = '🎤 Press SPACEBAR to Speak';
+        }
+        
+        async function sendText() {
+            const text = document.getElementById('textInput').value;
+            const voice = textVoiceSelect.value;
+            const systemPrompt = document.getElementById('systemPromptText').value;
+            
+            if (!text.trim()) {
+                setStatus('Please enter text', 'error');
+                return;
+            }
+            
+            setStatus('💬 Sending to Gemma 4...', 'info');
+            responseBox.style.display = 'block';
+            responseTextDiv.innerHTML = 'Thinking...';
+            
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('voice', voice);
+            formData.append('system_prompt', systemPrompt);
+            
+            try {
+                const response = await fetch('/chat', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.success) {
+                    sessionId = data.session_id;
+                    totalChunks = data.total_chunks;
+                    readyChunks = new Array(totalChunks).fill(false);
+                    responseTextDiv.innerHTML = '🤖 <strong>Gemma 4:</strong><br>' + data.response_text;
+                    setStatus('✅ ' + data.message, 'success');
+                    updateChunkVisualization(-1);
+                    await startPlayback();
+                } else {
+                    setStatus('❌ Error: ' + data.error, 'error');
+                    responseTextDiv.innerHTML = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                setStatus('❌ Error: ' + error.message, 'error');
+                responseTextDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        loadVoices();
+        setVolume(80);
+    </script>
+</body>
+</html>

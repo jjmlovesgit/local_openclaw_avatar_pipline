@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <meta charset="UTF-8">
+    <title>IMTalker Streaming - Avatar Sidecar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { overflow: hidden !important; height: 100%; width: 100%; }
+        body { 
+            background: transparent !important;
+            color: #fff; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: flex-start;
+            height: 100vh; 
+            margin: 0;
+            padding: 30px 0 20px 0;
+        }
+        
+        .drag-bar {
+            position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+            width: 512px; height: 35px; 
+            -webkit-app-region: drag !important;
+            z-index: 99999; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            cursor: grab;
+            border-radius: 0 0 8px 8px; 
+            pointer-events: auto !important;
+        }
+        .drag-bar span { pointer-events: none !important; }
+        .drag-bar-text { 
+            color: rgba(255, 255, 255, 0.3); 
+            font-size: 12px; 
+            letter-spacing: 4px; 
+        }
+        .drag-bar:hover { 
+            background: rgba(30, 30, 40, 0.8) !important; 
+            backdrop-filter: blur(5px); 
+        }
+        .drag-bar:hover .drag-bar-text { 
+            color: rgba(255, 255, 255, 0.9) !important; 
+        }
+        
+        button, input, #ai-text, .wakeword-status-bar, .control-bar {
+            pointer-events: auto !important;
+            -webkit-app-region: no-drag !important;
+            position: relative;
+            z-index: 100;
+        }
+        
+        /* --- TOP BAR: wake status + connect button --- */
+        .top-bar {
+            width: 512px;
+            margin: 0 auto 10px auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .top-bar .wakeword-status-bar {
+            flex: 1;
+            margin: 0;
+        }
+        .connect-btn-top {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: auto !important;
+            -webkit-app-region: no-drag !important;
+            transition: background 0.2s;
+        }
+        .connect-btn-top:hover { background: #0056b3; }
+        .connect-btn-top.connected { background: #28a745; }
+        .connect-btn-top.connected:hover { background: #218838; }
+        
+        .wakeword-status-bar {
+            padding: 8px 16px;
+            background: rgba(20, 20, 30, 0.8); border-radius: 30px;
+            backdrop-filter: blur(10px); display: flex; align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .wakeword-status-container { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .wakeword-indicator { 
+            width: 10px; height: 10px; border-radius: 50%; background-color: #666; 
+            transition: all 0.3s ease; 
+        }
+        .wakeword-indicator.status-idle { background-color: #666; }
+        .wakeword-indicator.status-active { background-color: #2196F3; animation: softPulse 2s infinite; }
+        .wakeword-indicator.status-speaking { background-color: #48bb78; animation: softPulse 1s infinite; }
+        .wakeword-indicator.status-warning { background-color: #FF5722; animation: softPulse 0.5s infinite; }
+        .wakeword-indicator.status-processing { background-color: #9C27B0; }
+        
+        @keyframes softPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        
+        .wakeword-message { color: white; font-size: 12px; font-weight: 500; flex: 1; }
+        .wakeword-badge {
+            background: rgba(100, 100, 255, 0.3); color: #aaccff;
+            font-size: 10px; font-weight: 600; padding: 2px 8px;
+            border-radius: 20px; border: 1px solid rgba(100, 150, 255, 0.4);
+            text-transform: uppercase;
+        }
+        .wakeword-badge.active { background: rgba(76, 175, 80, 0.4); color: #a5d6a5; }
+        .wakeword-timer { 
+            color: #888; font-size: 11px; margin-left: 8px; padding: 2px 8px; 
+            background: rgba(255,255,255,0.1); border-radius: 20px; 
+        }
+        
+        .video-wrapper { 
+            width: 256px; height: 256px; margin: 0 auto; border-radius: 15px; 
+            overflow: hidden; background: #000; border: 2px solid rgba(102,126,234,0.3);
+        }
+        .video-wrapper.hidden {
+            display: none;
+        }
+        .video-container { position: relative; width: 100%; height: 100%; background-color: #000; }
+        .video-container::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url('Johnny-Depp.png'); background-size: cover; z-index: 1;
+        }
+        #v_idle { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            opacity: 1; object-fit: cover; z-index: 5; 
+        }
+        video { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; opacity: 0; transition: opacity 0.2s; z-index: 2; 
+        }
+        video.active { opacity: 1; z-index: 10; }
+        
+        .controls { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; width: 512px; }
+        
+        /* Single‑line control bar with two radio groups */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-evenly;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding: 8px 16px;
+            background: rgba(30, 30, 40, 0.6);
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%;
+        }
+        .radio-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #ccc;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .radio-group input[type="radio"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #555;
+            border-radius: 50%;
+            margin: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #222;
+        }
+        .radio-group input[type="radio"]:checked {
+            border-color: #2196F3;
+            background: #2196F3;
+            box-shadow: inset 0 0 0 4px #222;
+        }
+        
+        .input-row { display: flex; gap: 10px; width: 100%; }
+        input { 
+            flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #333; 
+            background: #222; color: white; font-size: 12px; 
+            pointer-events: auto !important; cursor: text;
+        }
+        input.recording {
+            border-color: #ff4444 !important;
+            box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.25) !important;
+        }
+        input.processing {
+            border-color: #ffaa00 !important;
+            box-shadow: 0 0 0 2px rgba(255, 170, 0, 0.25) !important;
+        }
+        button { 
+            padding: 12px 24px; background: #007bff; color: white; border: none; 
+            border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 12px; 
+            pointer-events: auto !important;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        
+        .ctrl-hint {
+            font-size: 11px !important;
+            color: #666;
+            text-align: center;
+            margin-top: 4px;
+            font-style: italic;
+        }
+        
+        .status-area { 
+            width: 512px; 
+            margin-top: 10px; 
+            display: flex;
+            flex-direction: column;
+        }
+        .status-main { 
+            font-size: 12px; 
+            color: #aaa; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 22px;
+        }
+        #backend-status { 
+            width: 10px; 
+            height: 10px; 
+            border-radius: 5px; 
+            background: orange; 
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        #backend-status.online { background: #0f0; }
+        #backend-status.offline { background: #f00; }
+        
+        #ai-text { 
+            width: 100%; color: #48bb78; font-size: 12px; line-height: 1.5;
+            height: 90px; overflow-y: scroll; padding: 10px 12px;
+            background: rgba(20, 20, 20, 0.7); border: 1px solid rgba(72, 187, 120, 0.3);
+            border-radius: 8px; margin-top: 5px;
+            pointer-events: auto !important; cursor: text;
+        }
+        #ai-text::-webkit-scrollbar { width: 10px; }
+        #ai-text::-webkit-scrollbar-thumb { background: rgba(72, 187, 120, 0.6); border-radius: 5px; }
+        
+        /* Progress bar */
+        .progress-container {
+            width: 512px;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #00ccff);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+        .progress-container.show { display: block; }
+        
+        .toast-message {
+            position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+            padding: 10px 20px; border-radius: 30px; font-size: 13px; z-index: 2000;
+            display: none; background: rgba(33, 150, 243, 0.9); color: white;
+            pointer-events: none;
+        }
+        .toast-success { background: rgba(76, 175, 80, 0.9); }
+        
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: #48bb78;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+<div class="drag-bar">
+    <span class="drag-bar-text">⋮⋮ DRAG TO MOVE ⋮⋮</span>
+</div>
+
+<div id="toast-message" class="toast-message"></div>
+
+<!-- TOP BAR: Wake Word Status + Connect Button -->
+<div class="top-bar">
+    <div class="wakeword-status-bar">
+        <div class="wakeword-status-container">
+            <span id="wakeword-indicator" class="wakeword-indicator status-idle"></span>
+            <span id="wakeword-message" class="wakeword-message">💤 Say 'Hey Jarvis' to wake</span>
+            <span id="wakeword-badge" class="wakeword-badge">hey_jarvis</span>
+            <span id="wakeword-timer" class="wakeword-timer" style="display: none;"></span>
+        </div>
+    </div>
+    <button id="connectBtn" class="connect-btn-top">🎤 Connect & Start Listening</button>
+</div>
+
+<div class="video-wrapper">
+    <div class="video-container">
+        <video id="v_idle" loop muted playsinline></video>
+        <video id="v1" playsinline></video>
+        <video id="v2" playsinline></video>
+    </div>
+</div>
+
+<div class="controls">
+    <!-- Single‑line control bar with two radio groups -->
+    <div class="control-bar">
+        <!-- LLM radio group -->
+        <div class="radio-group">
+            <label>
+                <input type="radio" name="llm" value="lmstudio" checked> 🤖 LM Studio
+            </label>
+            <label>
+                <input type="radio" name="llm" value="openclaw"> 🔷 OpenClaw
+            </label>
+        </div>
+        <!-- Mode radio group (Avatar / Voice Only) -->
+        <div class="radio-group">
+            <label>
+                <input type="radio" name="mode" value="avatar" checked> 🎬 Avatar
+            </label>
+            <label>
+                <input type="radio" name="mode" value="voiceonly"> 🔊 Voice Only
+            </label>
+        </div>
+    </div>
+    
+    <div class="input-row">
+        <input type="text" id="userInput" placeholder="Type a message or hold CTRL for voice typing..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+    </div>
+    <div class="ctrl-hint">  </div>
+</div>
+
+<div class="status-area">
+    <div id="statusMain" class="status-main">
+        <span id="backend-status"></span>
+        <span id="statusText">Ready - Click Connect or type a message</span>
+    </div>
+    <div id="ai-text" tabindex="0"></div>
+    <div id="progressContainer" class="progress-container">
+        <div id="progressBar" class="progress-bar"></div>
+    </div>
+</div>
+
+<script>
+    // ============ CONFIGURATION ============
+    const BACKEND_URL = 'http://localhost:8002';
+    const DEFAULT_VOICE = 'jonnydepp';
+    
+    let ws = null;
+    let isListening = false;
+    let mediaStream = null;
+    let audioContext = null;
+    let sourceNode = null;
+    let processorNode = null;
+    let isWakeWordActive = false;
+    let videoQueue = [];
+    let isPlaying = false;
+    let currentUtteranceId = 0;
+    let useOpenClaw = false;
+    let skipAvatar = false;
+    let currentUserText = '';
+    
+    // DOM Elements
+    const connectBtn = document.getElementById('connectBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const userInput = document.getElementById('userInput');
+    const statusText = document.getElementById('statusText');
+    const aiTextDiv = document.getElementById('ai-text');
+    const wakewordIndicator = document.getElementById('wakeword-indicator');
+    const wakewordMessage = document.getElementById('wakeword-message');
+    const wakewordBadge = document.getElementById('wakeword-badge');
+    const wakewordTimer = document.getElementById('wakeword-timer');
+    const toastElement = document.getElementById('toast-message');
+    const backendStatus = document.getElementById('backend-status');
+    const idleVideo = document.getElementById('v_idle');
+    const v1 = document.getElementById('v1');
+    const v2 = document.getElementById('v2');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    
+    // Radio buttons
+    const radioLmStudio = document.querySelector('input[value="lmstudio"]');
+    const radioOpenClaw = document.querySelector('input[value="openclaw"]');
+    const radioAvatar = document.querySelector('input[value="avatar"]');
+    const radioVoiceOnly = document.querySelector('input[value="voiceonly"]');
+    
+    let currentAudio = null;
+    let typingTimer = null;
+    let isTyping = false;
+    let userScrolledUp = false;
+    let abortCurrentSession = false;
+    
+    // PTT Voice Typing
+    let pttMediaRecorder = null;
+    let pttAudioChunks = [];
+    let pttStream = null;
+    let isPTTRecording = false;
+    let ctrlPressed = false;
+    
+    // Helper to update status text
+    function setStatusText(text) {
+        if (statusText) statusText.textContent = text;
+    }
+    
+    // Progress bar
+    function updateProgressBar(percent) {
+        progressBar.style.width = Math.min(100, Math.max(0, percent)) + '%';
+    }
+    
+    function showProgress(show) {
+        if (show) progressContainer.classList.add('show');
+        else progressContainer.classList.remove('show');
+    }
+    
+    // ============ VIDEO VISIBILITY CONTROL ============
+    function setVideoVisible(visible) {
+        const videoWrapper = document.querySelector('.video-wrapper');
+        if (visible) {
+            videoWrapper.classList.remove('hidden');
+        } else {
+            videoWrapper.classList.add('hidden');
+        }
+    }
+    
+    // ============ SEND PREFERENCES TO SERVER ============
+    function sendLLMPreference(useOpenClaw) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "set_llm", use_openclaw: useOpenClaw }));
+        }
+    }
+    
+    function sendSkipAvatarPreference(skip) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "set_skip_avatar", skip_avatar: skip }));
+        }
+    }
+    
+    // ============ LLM RADIO ============
+    function updateLLMSelection() {
+        useOpenClaw = radioOpenClaw.checked;
+        console.log('🤖 LLM:', useOpenClaw ? 'OpenClaw' : 'LM Studio');
+        sendLLMPreference(useOpenClaw);
+    }
+    radioLmStudio.addEventListener('change', updateLLMSelection);
+    radioOpenClaw.addEventListener('change', updateLLMSelection);
+    
+    // ============ MODE RADIO (Avatar / Voice Only) ============
+    function updateModeSelection() {
+        skipAvatar = radioVoiceOnly.checked;
+        console.log('🎬 Mode:', skipAvatar ? 'Voice Only' : 'Avatar');
+        sendSkipAvatarPreference(skipAvatar);
+        // Show/hide video based on mode
+        setVideoVisible(!skipAvatar);
+    }
+    radioAvatar.addEventListener('change', updateModeSelection);
+    radioVoiceOnly.addEventListener('change', updateModeSelection);
+    
+    // Set initial video visibility (Avatar is checked by default)
+    setVideoVisible(true);
+    
+    // ============ BUTTON HANDLERS ============
+    connectBtn.onclick = () => toggleListening();
+    sendBtn.onclick = () => sendTextMessage();
+    
+    // ============ CLEAR VIDEO QUEUE ============
+    function clearVideoQueue() {
+        videoQueue = [];
+        isPlaying = false;
+        [v1, v2].forEach(v => {
+            v.pause(); v.removeAttribute('src'); v.load();
+            v.style.opacity = '0'; v.classList.remove('active'); v.onended = null;
+        });
+        if (idleVideo) idleVideo.style.opacity = '1';
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    }
+    
+    // ============ WAKE WORD UI ============
+    function updateWakeWordUI(status, message) {
+        if (wakewordMessage) wakewordMessage.textContent = message;
+        if (wakewordIndicator) {
+            wakewordIndicator.className = 'wakeword-indicator';
+            wakewordIndicator.classList.add(`status-${status}`);
+        }
+    }
+    
+    function updateTimer(secondsLeft) {
+        if (wakewordTimer) {
+            if (secondsLeft > 0) {
+                wakewordTimer.textContent = `${secondsLeft}s`;
+                wakewordTimer.style.display = 'inline-block';
+                wakewordTimer.style.color = secondsLeft <= 3 ? '#FF5722' : '#888';
+            } else wakewordTimer.style.display = 'none';
+        }
+    }
+    
+    function showToast(message, type) {
+        if (!toastElement) return;
+        toastElement.textContent = message;
+        toastElement.className = `toast-message toast-${type}`;
+        toastElement.style.display = 'block';
+        setTimeout(() => toastElement.style.display = 'none', 3000);
+    }
+    
+    // ============ TYPING ANIMATION (with guaranteed progress bar) ============
+    function startTypingAnimation(fullText) {
+        if (typingTimer) clearTimeout(typingTimer);
+        aiTextDiv.innerHTML = '';
+        isTyping = true;
+        userScrolledUp = false;
+        
+        let charIndex = 0;
+        const textLength = fullText.length;
+        const typingSpeed = Math.max(15, Math.min(4000 / textLength, 50));
+        
+        // Force progress bar to be visible immediately
+        showProgress(true);
+        updateProgressBar(0);
+        setStatusText("Generating response...");
+        
+        function typeNextChar() {
+            if (abortCurrentSession) return;
+            if (charIndex < textLength) {
+                aiTextDiv.innerHTML = fullText.substring(0, charIndex + 1) + '<span class="typing-cursor"></span>';
+                charIndex++;
+                const percent = Math.min(95, (charIndex / textLength) * 100);
+                updateProgressBar(percent);
+                if (!userScrolledUp) aiTextDiv.scrollTop = aiTextDiv.scrollHeight;
+                typingTimer = setTimeout(typeNextChar, typingSpeed);
+            } else {
+                aiTextDiv.innerHTML = fullText;
+                isTyping = false;
+                typingTimer = null;
+                // Keep progress bar at 100% briefly, then hide
+                updateProgressBar(100);
+                setTimeout(() => {
+                    if (!isTyping) {
+                        showProgress(false);
+                        setStatusText('✅ Ready');
+                    }
+                }, 500);
+            }
+        }
+        typeNextChar();
+    }
+    
+    // ============ MESSAGE HANDLER (fully supports voice‑only typing animation) ============
+    function handleMessage(data) {
+        console.log('📨', data.type, data);
+        switch(data.type) {
+            case 'ready':
+                updateWakeWordUI('idle', data.message);
+                if (wakewordBadge) wakewordBadge.textContent = data.wakeword || 'hey_jarvis';
+                setStatusText('🟢 Connected - Say "Hey Jarvis"');
+                break;
+            case 'llm_updated':
+                if (data.use_openclaw !== useOpenClaw) {
+                    useOpenClaw = data.use_openclaw;
+                    radioOpenClaw.checked = useOpenClaw;
+                    radioLmStudio.checked = !useOpenClaw;
+                }
+                break;
+            case 'skip_avatar_updated':
+                if (data.skip_avatar !== skipAvatar) {
+                    skipAvatar = data.skip_avatar;
+                    radioVoiceOnly.checked = skipAvatar;
+                    radioAvatar.checked = !skipAvatar;
+                    setVideoVisible(!skipAvatar);
+                }
+                break;
+            case 'clear_video':
+                clearVideoQueue();
+                currentUtteranceId = data.utterance;
+                break;
+            case 'status_update':
+                updateWakeWordUI(data.status, data.message);
+                if (data.time_left !== undefined) updateTimer(data.time_left);
+                if (data.is_activated !== undefined) {
+                    isWakeWordActive = data.is_activated;
+                    if (wakewordBadge) wakewordBadge.classList.toggle('active', isWakeWordActive);
+                }
+                // Do NOT hide progress bar while typing
+                break;
+            case 'wakeword_activated': case 'wakeword_detected':
+                isWakeWordActive = true;
+                updateWakeWordUI('active', data.message);
+                if (wakewordBadge) wakewordBadge.classList.add('active');
+                if (data.timeout) updateTimer(data.timeout);
+                showToast('🎯 Hey Jarvis detected!', 'success');
+                clearVideoQueue();
+                break;
+            case 'wakeword_deactivated': case 'wakeword_timeout':
+                isWakeWordActive = false;
+                updateWakeWordUI('idle', data.message);
+                if (wakewordBadge) wakewordBadge.classList.remove('active');
+                if (wakewordTimer) wakewordTimer.style.display = 'none';
+                showToast('😴 Listening mode ended', 'info');
+                clearVideoQueue();
+                break;
+            case 'speech_started':
+                updateWakeWordUI('speaking', data.message);
+                setStatusText('🎙️ Hearing you...');
+                break;
+            case 'processing_started':
+                updateWakeWordUI('processing', '🤔 Thinking...');
+                setStatusText(data.message || '🤔 Processing...');
+                if (!isTyping) {
+                    showProgress(true);
+                    updateProgressBar(0);
+                }
+                break;
+            case 'transcript':
+                if (data.text) {
+                    currentUserText = data.text;
+                    if (data.partial) {
+                        aiTextDiv.innerHTML = `🧑 ${data.text}<br><br>🤖 <span class="typing-cursor">...</span>`;
+                    } else {
+                        startTypingAnimation(data.response || '');
+                    }
+                }
+                break;
+            case 'audio_response':
+                if (data.url) {
+                    if (currentAudio) currentAudio.pause();
+                    currentAudio = new Audio(`${BACKEND_URL}${data.url}`);
+                    currentAudio.play().catch(e => console.error('Audio play error:', e));
+                    if (data.text) {
+                        // Explicitly show progress before typing
+                        showProgress(true);
+                        updateProgressBar(0);
+                        startTypingAnimation(data.text);
+                    } else {
+                        aiTextDiv.innerHTML = `🧑 ${currentUserText}<br><br>🔊 ${data.text || ''}`;
+                        if (!isTyping) {
+                            showProgress(false);
+                            setStatusText('✅ Ready');
+                        }
+                    }
+                }
+                break;
+            case 'chunk_complete':
+                console.log(`📹 Chunk ${data.chunk+1}/${data.total} complete`);
+                break;
+            case 'complete':
+                // Let the typing animation finish hiding the progress bar
+                if (!isTyping) {
+                    setStatusText('✅ Ready');
+                    showProgress(false);
+                }
+                break;
+            case 'error':
+                setStatusText(`❌ ${data.message}`);
+                showToast(data.message, 'error');
+                if (!isTyping) showProgress(false);
+                break;
+        }
+    }
+    
+    // ============ VIDEO PLAYBACK ============
+    function playVideo(url) {
+        videoQueue.push(url);
+        if (!isPlaying) playNextVideo();
+    }
+    
+    function playNextVideo() {
+        if (videoQueue.length === 0) {
+            isPlaying = false;
+            idleVideo.style.opacity = '1';
+            v1.style.opacity = '0';
+            v2.style.opacity = '0';
+            return;
+        }
+        isPlaying = true;
+        const url = videoQueue.shift();
+        const currentVideo = (v1.style.opacity === '1') ? v2 : v1;
+        const otherVideo = (currentVideo === v1) ? v2 : v1;
+        currentVideo.src = url;
+        currentVideo.style.opacity = '1';
+        currentVideo.classList.add('active');
+        otherVideo.style.opacity = '0';
+        otherVideo.classList.remove('active');
+        idleVideo.style.opacity = '0';
+        currentVideo.onended = () => { URL.revokeObjectURL(url); playNextVideo(); };
+        currentVideo.play().catch(e => console.error('Play error:', e));
+    }
+    
+    // ============ PTT VOICE TYPING ============
+    async function startPTTRecording() {
+        if (isPTTRecording) return;
+        if (document.activeElement !== userInput) return;
+        try {
+            pttStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            pttMediaRecorder = new MediaRecorder(pttStream);
+            pttAudioChunks = [];
+            pttMediaRecorder.ondataavailable = (e) => pttAudioChunks.push(e.data);
+            pttMediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(pttAudioChunks, { type: 'audio/webm' });
+                pttStream.getTracks().forEach(t => t.stop());
+                await transcribeAndFill(audioBlob);
+            };
+            pttMediaRecorder.start();
+            isPTTRecording = true;
+            userInput.placeholder = "🎤 Recording... Release CTRL to transcribe";
+            userInput.classList.add('recording');
+            showToast("🎤 Recording...", "info");
+        } catch (e) {
+            console.error('PTT mic error:', e);
+            showToast("Microphone access denied", "error");
+        }
+    }
+    
+    function stopPTTRecording() {
+        if (isPTTRecording && pttMediaRecorder && pttMediaRecorder.state === 'recording') {
+            pttMediaRecorder.stop();
+            isPTTRecording = false;
+            userInput.placeholder = "Type a message or hold CTRL for voice typing";
+            userInput.classList.remove('recording');
+        }
+    }
+    
+    async function transcribeAndFill(audioBlob) {
+        userInput.placeholder = "📝 Transcribing...";
+        userInput.classList.add('processing');
+        try {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'ptt.webm');
+            formData.append('voice', DEFAULT_VOICE);
+            formData.append('transcribe_only', 'true');
+            
+            const response = await fetch(`${BACKEND_URL}/chat`, { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.transcript) {
+                userInput.value = result.transcript;
+                showToast("✅ Voice captured – sending", "success");
+                await sendTextMessage();
+            } else {
+                showToast("Transcription failed", "error");
+            }
+        } catch (e) {
+            console.error('Transcribe error:', e);
+            showToast("Network error", "error");
+        } finally {
+            userInput.placeholder = "Type a message or hold CTRL for voice typing...";
+            userInput.classList.remove('processing', 'recording');
+        }
+    }
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Control' && !ctrlPressed) {
+            ctrlPressed = true;
+            if (document.activeElement === userInput && !userInput.disabled && !isPTTRecording) {
+                e.preventDefault();
+                startPTTRecording();
+            }
+        }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'Control') {
+            ctrlPressed = false;
+            if (isPTTRecording) {
+                e.preventDefault();
+                stopPTTRecording();
+            }
+        }
+    });
+    
+    window.addEventListener('blur', () => {
+        if (isPTTRecording) stopPTTRecording();
+        ctrlPressed = false;
+    });
+    
+    // ============ AUDIO STREAMING (Listening Mode) ============
+    async function startAudioStream() {
+        try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true } 
+            });
+            audioContext = new AudioContext({ sampleRate: 16000 });
+            sourceNode = audioContext.createMediaStreamSource(mediaStream);
+            processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+            processorNode.onaudioprocess = (event) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                const inputData = event.inputBuffer.getChannelData(0);
+                const pcmData = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    const s = Math.max(-1, Math.min(1, inputData[i]));
+                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                ws.send(pcmData.buffer);
+            };
+            sourceNode.connect(processorNode);
+            processorNode.connect(audioContext.destination);
+            await audioContext.resume();
+            console.log('✅ Audio streaming started');
+            return true;
+        } catch(e) {
+            console.error('Mic error:', e);
+            setStatusText('❌ Microphone access denied');
+            return false;
+        }
+    }
+    
+    function stopAudioStream() {
+        if (processorNode) processorNode.disconnect();
+        if (sourceNode) sourceNode.disconnect();
+        if (audioContext) audioContext.close();
+        if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+        processorNode = sourceNode = audioContext = mediaStream = null;
+    }
+    
+    // ============ WEBSOCKET CONNECTION ============
+    function connectWebSocket() {
+        const hostname = window.location.hostname || 'localhost';
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${hostname}:8002/ws/realtime/${DEFAULT_VOICE}`;
+        console.log('🔌 Connecting to WebSocket:', wsUrl);
+        ws = new WebSocket(wsUrl);
+        ws.onopen = async () => {
+            isListening = true;
+            connectBtn.textContent = '🔴 Stop Listening';
+            connectBtn.classList.add('connected');
+            console.log('✅ WebSocket connected');
+            setTimeout(() => {
+                sendLLMPreference(useOpenClaw);
+                sendSkipAvatarPreference(skipAvatar);
+            }, 500);
+            if (!await startAudioStream()) disconnectWebSocket();
+        };
+        ws.onmessage = (event) => {
+            if (typeof event.data === 'string') {
+                try { handleMessage(JSON.parse(event.data)); } catch(e) {}
+            } else {
+                playVideo(URL.createObjectURL(new Blob([event.data], { type: 'video/mp4' })));
+            }
+        };
+        ws.onerror = (error) => { console.error('❌ WebSocket error:', error); setStatusText('❌ Connection error'); };
+        ws.onclose = () => {
+            isListening = false;
+            connectBtn.textContent = '🎤 Connect & Start Listening';
+            connectBtn.classList.remove('connected');
+            stopAudioStream();
+            clearVideoQueue();
+            updateWakeWordUI('idle', '💤 Not listening');
+            if (wakewordBadge) wakewordBadge.classList.remove('active');
+            if (wakewordTimer) wakewordTimer.style.display = 'none';
+            setStatusText('Ready - Type a message or connect');
+        };
+    }
+    
+    function disconnectWebSocket() {
+        if (ws) ws.close();
+        stopAudioStream();
+        clearVideoQueue();
+    }
+    
+    function toggleListening() {
+        isListening ? disconnectWebSocket() : connectWebSocket();
+    }
+    
+    // ============ TEXT MESSAGES (with typing animation) ============
+    async function sendTextMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+        userInput.value = '';
+        currentUserText = text;
+        aiTextDiv.innerHTML = `🧑 ${text}<br><br>🤖 <span class="typing-cursor">...</span>`;
+        clearVideoQueue();
+        abortCurrentSession = false;
+        showProgress(true);
+        updateProgressBar(0);
+        setStatusText("Thinking...");
+        
+        try {
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('voice', DEFAULT_VOICE);
+            formData.append('use_openclaw', useOpenClaw);
+            formData.append('skip_avatar', skipAvatar);
+            
+            const response = await fetch(`${BACKEND_URL}/chat`, { method: 'POST', body: formData });
+            const result = await response.json();
+            console.log('Chat response:', result);
+            
+            if (abortCurrentSession) return;
+            
+            if (result.skip_avatar) {
+                if (result.audio_url) {
+                    if (currentAudio) currentAudio.pause();
+                    currentAudio = new Audio(`${BACKEND_URL}${result.audio_url}`);
+                    currentAudio.play().catch(e => console.error('Audio play error:', e));
+                    if (result.display_text) {
+                        // Animation will control progress bar; do NOT call showProgress(false) here
+                        startTypingAnimation(result.display_text);
+                    } else {
+                        aiTextDiv.innerHTML = `🧑 ${text}<br><br>🔊 ${result.display_text || ''}`;
+                        // No text to animate, so hide progress bar manually
+                        showProgress(false);
+                        setStatusText('✅ Ready');
+                    }
+                }
+            } else if (result.success && result.session_id && result.total_chunks > 0) {
+                // Start typing animation with the response text
+                if (result.display_text) {
+                    startTypingAnimation(result.display_text);
+                }
+                // Poll and play video chunks
+                pollAndPlayChunks(result.session_id, result.total_chunks);
+            } else if (result.display_text) {
+                startTypingAnimation(result.display_text);
+            }
+        } catch(e) {
+            console.error('Send error:', e);
+            aiTextDiv.innerHTML = `🧑 ${text}<br><br>❌ Network error`;
+            setStatusText('❌ Network error');
+            showProgress(false);
+        }
+    }
+    
+    async function pollAndPlayChunks(sessionId, totalChunks) {
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            if (abortCurrentSession) break;
+            setStatusText(`📹 Loading video ${chunkIndex + 1}/${totalChunks}...`);
+            try {
+                const waitResponse = await fetch(`${BACKEND_URL}/wait_for_chunk/${sessionId}/${chunkIndex}`);
+                const waitData = await waitResponse.json();
+                if (!waitData.ready) { console.error(`Chunk ${chunkIndex} timeout`); break; }
+                const chunkUrl = `${BACKEND_URL}${waitData.url}`;
+                const videoResponse = await fetch(chunkUrl);
+                const videoBlob = await videoResponse.blob();
+                playVideo(URL.createObjectURL(videoBlob));
+            } catch (err) {
+                console.error(`Error fetching chunk ${chunkIndex}:`, err);
+                break;
+            }
+        }
+        if (!abortCurrentSession) {
+            setStatusText('✅ Ready');
+            showProgress(false);
+        }
+    }
+    
+    // ============ BACKEND HEALTH ============
+    async function checkHealth() {
+        try {
+            const r = await fetch(`${BACKEND_URL}/voices`);
+            backendStatus.className = r.ok ? 'online' : 'offline';
+        } catch { backendStatus.className = 'offline'; }
+    }
+    setInterval(checkHealth, 10000);
+    checkHealth();
+    
+    // ============ KEYBOARD ============
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !ctrlPressed) { 
+            e.preventDefault(); 
+            sendTextMessage(); 
+        }
+    });
+    
+    aiTextDiv.addEventListener('scroll', () => {
+        const isAtBottom = aiTextDiv.scrollHeight - aiTextDiv.scrollTop <= aiTextDiv.clientHeight + 30;
+        userScrolledUp = !isAtBottom;
+    });
+    
+    // ============ DRAG BAR ============
+    const dragBar = document.querySelector('.drag-bar');
+    document.addEventListener('mousemove', (e) => {
+        if (e.clientY <= 40) dragBar.classList.add('force-hover');
+        else dragBar.classList.remove('force-hover');
+    });
+    
+    console.log('Avatar.html loaded - Progress bar now works for text input voice‑only');
+    setStatusText('Ready - Type, use CTRL to voice type, or connect');
+</script>
+</body>
+</html>

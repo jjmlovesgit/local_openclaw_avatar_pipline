@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Real-Time Avatar Studio</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 390px;
+            width: 100%;
+            min-height: 760px;
+            margin: 0 auto;
+            background: rgba(15, 15, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 0px;
+            padding: 20px 16px 30px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 100vh;
+        }
+        
+        .avatar-section {
+            text-align: center;
+            margin: 20px 0 10px 0;
+        }
+        
+        .avatar-title {
+            color: white;
+            font-size: 12px;
+            margin-bottom: 8px;
+            opacity: 0.6;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            border: 2px solid rgba(102,126,234,0.3);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: transparent;
+            z-index: 2;
+        }
+        
+        .volume-control {
+            text-align: center;
+            margin: 12px 0 10px 0;
+        }
+        
+        .volume-control label {
+            color: #888;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+        
+        .volume-control input {
+            width: 120px;
+            vertical-align: middle;
+            -webkit-appearance: none;
+            background: #2d3748;
+            height: 3px;
+            border-radius: 3px;
+        }
+        
+        .volume-control input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+        
+        .volume-control span {
+            color: #888;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        
+        .controls-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        
+        .record-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 8px 0;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+        }
+        
+        .record-btn.recording {
+            background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Status Bar with Wake Word Indicator */
+        .status-bar {
+            background: rgba(20, 20, 30, 0.8);
+            border-radius: 30px;
+            padding: 10px 16px;
+            margin: 8px 0;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #666;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .status-indicator.status-idle { background-color: #666; box-shadow: 0 0 5px #666; }
+        .status-indicator.status-listening { background-color: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
+        .status-indicator.status-active { background-color: #2196F3; box-shadow: 0 0 8px #2196F3; animation: softPulse 2s infinite; }
+        .status-indicator.status-speaking { background-color: #FF9800; box-shadow: 0 0 12px #FF9800; animation: softPulse 1s infinite; }
+        .status-indicator.status-processing { background-color: #9C27B0; box-shadow: 0 0 8px #9C27B0; }
+        .status-indicator.status-transcribing { background-color: #00BCD4; box-shadow: 0 0 8px #00BCD4; }
+        .status-indicator.status-generating { background-color: #E91E63; box-shadow: 0 0 8px #E91E63; }
+        .status-indicator.status-warning { background-color: #FF5722; box-shadow: 0 0 12px #FF5722; animation: softPulse 0.5s infinite; }
+        .status-indicator.status-error { background-color: #F44336; box-shadow: 0 0 8px #F44336; }
+        
+        @keyframes softPulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        .status-message {
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            flex: 1;
+        }
+        
+        .wakeword-badge {
+            background: rgba(100, 100, 255, 0.25);
+            color: #aaccff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(100, 150, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+        
+        .wakeword-badge.active {
+            background: rgba(76, 175, 80, 0.3);
+            color: #a5d6a5;
+            border-color: rgba(76, 175, 80, 0.5);
+            animation: glow 2s infinite;
+        }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.3); }
+            50% { box-shadow: 0 0 12px rgba(76, 175, 80, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.3); }
+        }
+        
+        .timeout-timer {
+            color: #888;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .audio-meter-container {
+            width: 80px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-left: 10px;
+        }
+        
+        .audio-meter {
+            height: 100%;
+            width: 0%;
+            background: #4CAF50;
+            transition: width 0.1s ease, background 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        /* Toast Message */
+        .toast-message {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 2000;
+            display: none;
+            animation: slideDown 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            white-space: nowrap;
+        }
+        
+        .toast-success {
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            border: 1px solid #4CAF50;
+        }
+        
+        .toast-info {
+            background: rgba(33, 150, 243, 0.9);
+            color: white;
+            border: 1px solid #2196F3;
+        }
+        
+        .toast-error {
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            border: 1px solid #F44336;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        /* Legacy status (hidden, kept for compatibility) */
+        .status {
+            display: none;
+        }
+        
+        .transcript {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 14px;
+            margin-top: 16px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .conversation-turn {
+            margin-bottom: 16px;
+        }
+        
+        .user-question {
+            color: #90cdf4;
+            margin-bottom: 8px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .user-question::before {
+            content: "🗣️";
+        }
+        
+        .avatar-response {
+            color: #fbbf24;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .avatar-response::before {
+            content: "🤖";
+        }
+        
+        .avatar-response.typing {
+            border-right: 2px solid #fbbf24;
+            animation: blink 0.7s step-end infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { border-color: transparent; }
+            50% { border-color: #fbbf24; }
+        }
+        
+        hr {
+            margin: 10px 0;
+            border-color: rgba(255,255,255,0.08);
+        }
+        
+        /* Scrollbar styling */
+        .transcript::-webkit-scrollbar {
+            width: 3px;
+        }
+        
+        .transcript::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        
+        .transcript::-webkit-scrollbar-thumb {
+            background: rgba(102,126,234,0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="avatar-section">
+            <div class="video-container" id="videoContainer" style="background-image: url('data:image/png;base64,{{ AVATAR_BASE64 }}');">
+                <video id="avatarVideo" autoplay playsinline></video>
+            </div>
+            <div class="volume-control">
+                <label>🔊 Volume</label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="80" onchange="setVolume(this.value)">
+                <span id="volumeLabel">80%</span>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <button id="recordBtn" class="record-btn">🎤 Start Real-Time Mode</button>
+            
+            <!-- New Status Bar with Wake Word Integration -->
+            <div class="status-bar">
+                <div class="status-container">
+                    <span id="status-indicator" class="status-indicator status-idle"></span>
+                    <span id="status-message" class="status-message">🎤 Initializing...</span>
+                    <span id="wakeword-badge" class="wakeword-badge">hey_jarvis</span>
+                    <span id="timeout-timer" class="timeout-timer" style="display: none;"></span>
+                </div>
+                <div class="audio-meter-container">
+                    <div id="audio-meter" class="audio-meter"></div>
+                </div>
+            </div>
+            
+            <!-- Legacy status (hidden) -->
+            <div id="status" class="status inactive"></div>
+            
+            <div class="transcript" id="transcript">
+                <div style="color: #888; text-align: center; padding: 20px;">Tap Start and speak naturally</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-message" class="toast-message"></div>
+
+    <script>
+        // --- DOM Elements ---
+        const videoElement = document.getElementById('avatarVideo');
+        const recordBtn = document.getElementById('recordBtn');
+        const statusDiv = document.getElementById('status');
+        const transcriptDiv = document.getElementById('transcript');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeLabel = document.getElementById('volumeLabel');
+        
+        // New UI Elements
+        const statusMessage = document.getElementById('status-message');
+        const statusIndicator = document.getElementById('status-indicator');
+        const timeoutTimer = document.getElementById('timeout-timer');
+        const audioMeter = document.getElementById('audio-meter');
+        const wakewordBadge = document.getElementById('wakeword-badge');
+        const toastElement = document.getElementById('toast-message');
+        
+        // --- State Variables ---
+        let ws = null;
+        let isRecording = false;
+        let mediaStream = null;
+        let audioContext = null;
+        let sourceNode = null;
+        let processorNode = null;
+        let videoQueue = [];
+        let isPlaying = false;
+        let currentTypingTimeout = null;
+        let isWakeWordActive = false;
+        let wakeWordEnabled = true;
+        const DEFAULT_VOICE = 'jonnydepp';
+        const TYPING_SPEED_MS = 60;
+        
+        // --- Helper Functions ---
+        function setVolume(value) {
+            const vol = value / 100;
+            if (videoElement) videoElement.volume = vol;
+            if (volumeLabel) volumeLabel.textContent = value + '%';
+        }
+        
+        function enableAudio() {
+            if (!videoElement) return;
+            videoElement.muted = false;
+            videoElement.volume = volumeSlider ? volumeSlider.value / 100 : 0.8;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        // --- UI Update Functions for Wake Word ---
+        function updateWakeWordUI(status, message) {
+            if (statusMessage) {
+                statusMessage.textContent = message;
+            }
+            
+            if (statusIndicator) {
+                statusIndicator.className = 'status-indicator';
+                statusIndicator.classList.add(`status-${status}`);
+                statusIndicator.setAttribute('data-status', status);
+            }
+            
+            const colors = {
+                'idle': '#666666',
+                'listening': '#4CAF50',
+                'active': '#2196F3',
+                'speaking': '#FF9800',
+                'processing': '#9C27B0',
+                'transcribing': '#00BCD4',
+                'generating': '#E91E63',
+                'warning': '#FF5722',
+                'error': '#F44336'
+            };
+            
+            if (statusIndicator && colors[status]) {
+                statusIndicator.style.backgroundColor = colors[status];
+            }
+            
+            // Also update legacy status div
+            if (statusDiv) {
+                statusDiv.textContent = message;
+                if (status === 'error') {
+                    statusDiv.className = 'status error';
+                } else if (status === 'idle') {
+                    statusDiv.className = 'status inactive';
+                } else {
+                    statusDiv.className = 'status active';
+                }
+            }
+        }
+        
+        function updateTimer(secondsLeft, isWarning) {
+            if (timeoutTimer) {
+                if (secondsLeft > 0) {
+                    timeoutTimer.textContent = `${secondsLeft}s`;
+                    timeoutTimer.style.display = 'inline-block';
+                    
+                    if (isWarning || secondsLeft <= 3) {
+                        timeoutTimer.style.color = '#FF5722';
+                        timeoutTimer.style.fontWeight = 'bold';
+                        timeoutTimer.style.animation = 'softPulse 1s infinite';
+                    } else {
+                        timeoutTimer.style.color = '#888';
+                        timeoutTimer.style.fontWeight = 'normal';
+                        timeoutTimer.style.animation = 'none';
+                    }
+                } else {
+                    timeoutTimer.style.display = 'none';
+                }
+            }
+        }
+        
+        function updateAudioMeter(level) {
+            if (audioMeter) {
+                const normalized = Math.min(100, (level / 500) * 100);
+                audioMeter.style.width = normalized + '%';
+                
+                if (normalized > 70) {
+                    audioMeter.style.background = 'linear-gradient(90deg, #4CAF50, #FFEB3B, #F44336)';
+                } else if (normalized > 30) {
+                    audioMeter.style.background = 'linear-gradient(90deg, #4CAF50, #FFEB3B)';
+                } else {
+                    audioMeter.style.background = '#4CAF50';
+                }
+            }
+        }
+        
+        function updateActivationBadge(isActive) {
+            if (wakewordBadge) {
+                if (isActive) {
+                    wakewordBadge.classList.add('active');
+                    wakewordBadge.style.backgroundColor = 'rgba(76, 175, 80, 0.3)';
+                } else {
+                    wakewordBadge.classList.remove('active');
+                    wakewordBadge.style.backgroundColor = 'rgba(100, 100, 255, 0.25)';
+                }
+            }
+        }
+        
+        function showToast(message, type = 'info') {
+            if (!toastElement) return;
+            
+            toastElement.textContent = message;
+            toastElement.className = `toast-message toast-${type}`;
+            toastElement.style.display = 'block';
+            
+            setTimeout(() => {
+                toastElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        // --- Typing Animation ---
+        function typeText(element, text, speed, onComplete) {
+            let index = 0;
+            element.textContent = '';
+            element.classList.add('typing');
+            
+            function typeNext() {
+                if (index < text.length) {
+                    element.textContent += text.charAt(index);
+                    index++;
+                    currentTypingTimeout = setTimeout(typeNext, speed);
+                } else {
+                    element.classList.remove('typing');
+                    if (onComplete) onComplete();
+                    currentTypingTimeout = null;
+                }
+            }
+            
+            typeNext();
+        }
+        
+        function addConversationWithTyping(userText, avatarResponse) {
+            if (!transcriptDiv) return;
+            
+            if (currentTypingTimeout) {
+                clearTimeout(currentTypingTimeout);
+                currentTypingTimeout = null;
+            }
+            
+            const conversationTurn = document.createElement('div');
+            conversationTurn.className = 'conversation-turn';
+            
+            const userDiv = document.createElement('div');
+            userDiv.className = 'user-question';
+            userDiv.textContent = userText;
+            conversationTurn.appendChild(userDiv);
+            
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'avatar-response';
+            avatarDiv.style.whiteSpace = 'pre-wrap';
+            avatarDiv.style.wordBreak = 'break-word';
+            conversationTurn.appendChild(avatarDiv);
+            
+            const hr = document.createElement('hr');
+            conversationTurn.appendChild(hr);
+            
+            transcriptDiv.insertBefore(conversationTurn, transcriptDiv.firstChild);
+            transcriptDiv.scrollTop = 0;
+            
+            typeText(avatarDiv, avatarResponse, TYPING_SPEED_MS, () => {
+                console.log('Typing complete');
+            });
+            
+            while (transcriptDiv.children.length > 40) {
+                transcriptDiv.removeChild(transcriptDiv.lastChild);
+            }
+        }
+        
+        // --- WebSocket Message Handler ---
+        function handleMessage(data) {
+            console.log('Received message:', data.type, data);
+            
+            switch(data.type) {
+                // Wake Word Status Messages
+                case 'ready':
+                    wakeWordEnabled = data.wakeword_enabled || false;
+                    updateWakeWordUI('idle', data.message);
+                    if (wakewordBadge) {
+                        wakewordBadge.textContent = data.wakeword || 'hey_jarvis';
+                        wakewordBadge.style.display = wakeWordEnabled ? 'inline-block' : 'none';
+                    }
+                    break;
+                    
+                case 'status':
+                case 'status_update':
+                    updateWakeWordUI(data.status, data.message);
+                    if (data.time_left !== undefined) {
+                        updateTimer(data.time_left, data.status === 'warning');
+                    }
+                    if (data.audio_level !== undefined) {
+                        updateAudioMeter(data.audio_level);
+                    }
+                    if (data.is_activated !== undefined) {
+                        isWakeWordActive = data.is_activated;
+                        updateActivationBadge(isWakeWordActive);
+                    }
+                    break;
+                    
+                case 'wakeword_activated':
+                case 'wakeword_detected':
+                    isWakeWordActive = true;
+                    updateWakeWordUI('active', data.message);
+                    updateActivationBadge(true);
+                    if (data.timeout) {
+                        updateTimer(data.timeout, false);
+                    }
+                    showToast(data.message, 'success');
+                    break;
+                    
+                case 'wakeword_deactivated':
+                case 'wakeword_timeout':
+                    isWakeWordActive = false;
+                    updateWakeWordUI('idle', data.message);
+                    updateActivationBadge(false);
+                    if (timeoutTimer) {
+                        timeoutTimer.style.display = 'none';
+                    }
+                    showToast(data.message, 'info');
+                    break;
+                    
+                case 'speech_started':
+                    updateWakeWordUI('speaking', data.message);
+                    break;
+                    
+                case 'processing_started':
+                    updateWakeWordUI('processing', data.message);
+                    break;
+                    
+                // Original Message Types
+                case 'connected':
+                    console.log('Session:', data.session_id);
+                    break;
+                    
+                case 'processing':
+                    updateWakeWordUI('transcribing', '📝 Transcribing...');
+                    break;
+                    
+                case 'transcript':
+                    if (data.text && data.response) {
+                        addConversationWithTyping(data.text, data.response);
+                    }
+                    updateWakeWordUI('generating', '🎬 Creating video...');
+                    break;
+                    
+                case 'chunk_complete':
+                    console.log(`Chunk ${data.chunk + 1}/${data.total} complete`);
+                    break;
+                    
+                case 'complete':
+                    updateWakeWordUI(isWakeWordActive ? 'active' : 'idle', 
+                        isWakeWordActive ? '🟢 Listening...' : '💤 Say "Hey Jarvis"');
+                    break;
+                    
+                case 'error':
+                    updateWakeWordUI('error', `❌ ${data.message}`);
+                    showToast(data.message, 'error');
+                    break;
+                    
+                default:
+                    console.log('Unknown message type:', data.type);
+            }
+        }
+        
+        function queueVideo(videoUrl) {
+            videoQueue.push(videoUrl);
+            if (!isPlaying) playNextVideo();
+        }
+        
+        function playNextVideo() {
+            if (videoQueue.length === 0) {
+                isPlaying = false;
+                if (videoElement) videoElement.style.opacity = '0';
+                return;
+            }
+            isPlaying = true;
+            const url = videoQueue.shift();
+            
+            if (videoElement) {
+                videoElement.muted = false;
+                videoElement.volume = volumeSlider ? volumeSlider.value / 100 : 0.8;
+                videoElement.style.opacity = '1';
+                videoElement.src = url;
+                videoElement.onended = () => {
+                    URL.revokeObjectURL(url);
+                    setTimeout(() => playNextVideo(), 100);
+                };
+                videoElement.play().catch(e => console.error('Play error:', e));
+            } else {
+                console.error('Video element not found');
+                playNextVideo();
+            }
+        }
+        
+        async function startMicrophone() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                sourceNode = audioContext.createMediaStreamSource(mediaStream);
+                processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+                processorNode.onaudioprocess = (event) => {
+                    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                    const inputData = event.inputBuffer.getChannelData(0);
+                    const pcmData = new Int16Array(inputData.length);
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+                    ws.send(pcmData.buffer);
+                };
+                sourceNode.connect(processorNode);
+                processorNode.connect(audioContext.destination);
+                await audioContext.resume();
+                return true;
+            } catch(e) {
+                console.error('Microphone error:', e);
+                updateWakeWordUI('error', '❌ Could not access microphone');
+                return false;
+            }
+        }
+        
+        function stopMicrophone() {
+            if (processorNode) processorNode.disconnect();
+            if (sourceNode) sourceNode.disconnect();
+            if (audioContext) audioContext.close();
+            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            processorNode = sourceNode = audioContext = mediaStream = null;
+        }
+        
+        async function startRealtime() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                stopRealtime();
+                return;
+            }
+            
+            enableAudio();
+            videoQueue = [];
+            isPlaying = false;
+            if (videoElement) {
+                videoElement.src = '';
+                videoElement.style.opacity = '0';
+            }
+            
+            const voice = DEFAULT_VOICE;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/realtime/${voice}`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = async () => {
+                isRecording = true;
+                if (recordBtn) {
+                    recordBtn.textContent = '🔴 Stop';
+                    recordBtn.classList.add('recording');
+                }
+                updateWakeWordUI('idle', '🎤 Connecting...');
+                if (!await startMicrophone()) stopRealtime();
+            };
+            
+            ws.onmessage = async (event) => {
+                if (typeof event.data === 'string') {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleMessage(data);
+                    } catch(err) {
+                        console.error('JSON parse error:', err);
+                    }
+                } else {
+                    const videoUrl = URL.createObjectURL(new Blob([event.data], { type: 'video/mp4' }));
+                    queueVideo(videoUrl);
+                }
+            };
+            
+            ws.onerror = () => {
+                updateWakeWordUI('error', '❌ Connection error');
+                showToast('Connection error', 'error');
+            };
+            
+            ws.onclose = () => {
+                if (isRecording) stopRealtime();
+            };
+        }
+        
+        function stopRealtime() {
+            isRecording = false;
+            stopMicrophone();
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            if (recordBtn) {
+                recordBtn.textContent = '🎤 Start Real-Time Mode';
+                recordBtn.classList.remove('recording');
+            }
+            updateWakeWordUI('idle', '⚪ Ready');
+            updateActivationBadge(false);
+            if (timeoutTimer) timeoutTimer.style.display = 'none';
+            if (audioMeter) audioMeter.style.width = '0%';
+            videoQueue = [];
+            isPlaying = false;
+            if (videoElement) videoElement.style.opacity = '0';
+        }
+        
+        // --- Event Listeners ---
+        if (recordBtn) {
+            recordBtn.onclick = () => isRecording ? stopRealtime() : startRealtime();
+        }
+        
+        if (volumeSlider) {
+            volumeSlider.onchange = (e) => setVolume(e.target.value);
+        }
+        
+        // --- Initial Load ---
+        fetch('/voices').then(r => r.json()).then(data => {
+            console.log('Voices loaded:', data);
+        }).catch(e => console.error('Error loading voices:', e));
+        
+        // Initialize UI
+        updateWakeWordUI('idle', '🎤 Ready - Tap Start');
+        if (wakewordBadge) {
+            wakewordBadge.style.display = 'inline-block';
+        }
+        
+        window.addEventListener('beforeunload', () => {
+            if (ws) ws.close();
+            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            if (audioContext) audioContext.close();
+        });
+    </script>
+</body>
+</html>

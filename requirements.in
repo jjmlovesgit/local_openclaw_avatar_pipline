@@ -1,0 +1,10 @@
+﻿fastapi
+uvicorn
+torch
+transformers
+faster-whisper
+webrtcvad
+livekit-wakeword
+torchdiffeq
+face-alignment
+httpx
