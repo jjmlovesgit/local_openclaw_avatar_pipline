@@ -21,6 +21,8 @@ You will create an AI-powered avatar that can:
 ---
 
 ## 📸 Preview 
+<img width="1791" height="1083" alt="image" src="https://github.com/user-attachments/assets/b7c661e5-b768-4257-a01d-c004c3283724" />
+Link:  
 https://youtu.be/CIhQwnUNoAk
 
 ```md
