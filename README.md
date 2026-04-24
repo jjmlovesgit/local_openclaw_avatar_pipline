@@ -21,8 +21,8 @@ You will create an AI-powered avatar that can:
 ---
 
 ## 📸 Preview 
-<img width="617" height="653" alt="image" src="https://github.com/user-attachments/assets/c0080be2-49b6-4f21-b9b6-ef572a4d4e9e" />
-https://github.com/jjmlovesgit/local_openclaw_avatar_pipline/blob/main/tests/OCFUN.mp4
+https://youtu.be/CIhQwnUNoAk
+
 ```md
 
 
